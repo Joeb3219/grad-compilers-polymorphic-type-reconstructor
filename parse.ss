@@ -77,17 +77,40 @@
   (lambda (R)
     (cond
       ((null? R) #f)
+      ((eq? '() (cdr R)) #f)
       ((eq? (cadr R) `->) #t)
       (else #f)
+    )
   )
 )
 
 (define yieldsIn
   (lambda (R)
-    
+    (if (isYields? R) (car R) '())
   )
 )
-  
+
+(define yieldsOut
+  (lambda (R)
+    (if (isYields? R) (caddr R) '())
+  )
+)
+
+; Go through C2 until we find an entry in C2 s.t. C2 is the yieldsIn of yields.
+; if we find such a match, we immediately return yieldsOut of yields.
+; If no such match is found, we return an empty list.
+(define findMatch
+  (lambda (yields C2)
+    (cond
+      ((eq? C2 '()) '())
+      ((null? C2) '())
+      ((eq? (yieldsIn yields) (car C2)) (yieldsOut yields))
+      (else (findMatch yields (cdr C2)))
+
+    )
+  )
+)
+
 (define unify
   (lambda (C1 C2)
     (display "C1: ") (display C1) (newline)
@@ -98,7 +121,13 @@
       )
       (map
         (lambda (a)
-          a
+          (cond
+            ((isYields? a)
+             ; this is a yields value, so let's go ahead and parse everything in C2 that is part of it
+             (if (findMatch a C2) (yieldsOut a) '())
+            )
+            (else '())
+          )
         )
         C1
       )
@@ -129,8 +158,8 @@
             ((eq? (car ast) `&apply) (begin
                                        (display "I'm apply!") (newline)
                                        (unify 
-                                        (TR (cadr ast) E C)
-                                        (TR (caddr ast) E C)
+                                        (car (TR (cadr ast) E C)) ; Parse lambda
+                                        (TR (caddr ast) E C) ; Parse argument
                                        )
                                      )
             )

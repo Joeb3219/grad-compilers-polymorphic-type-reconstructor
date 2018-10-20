@@ -146,6 +146,96 @@
   )
 )
 
+; Searches for K._ and returns _ in L.
+(define search
+  (lambda (L k)
+    (cond
+      ((null? L) '())
+      ((eq? K (caar L)) (cdar L))
+      (else (search (cdr L) K))
+    )
+  )
+)
+
+; Inserts only if K isn't already in L.
+(define insNew
+  (lambda (L K V)
+    (if (eq? '() (search L K)) (insert L K V) L)
+  )
+)
+
+; Inserts the pair K.V into L.
+(define insert
+  (lambda (L K V)
+    (cons (cons K V) L)
+  )
+)
+
+(define getE
+  (lambda (P)
+    (car P)
+  )
+)
+
+(define getC
+  (lambda (P)
+    (cdr P)
+  )
+)
+
+(define pack
+  (lambda (E C)
+    (cons E C)
+  )
+)
+
+; If L is currently in E, will just return E
+; Otherwise, will generate a new environment variable and associate it with L, inserting into E.
+(define eIns
+  (lambda (E L)
+    (if (eq? (search E L) '()) (insert E L (newtvar)) E)
+  )
+)
+
+(define cIns
+  (lambda (C L T)
+    (if (eq? (search C L) '()) (insert C L T) C)
+  )
+)
+
+(define inList?
+  (lambda (L I)
+    (cond
+      ((null? L) #f)
+      ((eq? (car L) I) #t)
+      (else #f)
+    )
+  )
+)
+
+(define merge
+  (lambda (A B)
+    (reduce (lambda (N C)
+                            (if (inList? N C) N (cons N C))
+                          ) A B)
+  )
+)
+
+(define mergeReturn
+  (lambda (A B)
+    (pack
+      (merge (getE A) (getE B))
+      (merge (getC A) (getC B))
+    )
+  )
+)
+
+; Returns in format of (typeExpression constraints)
+; type expression is in terms of type variables, ie x -> beta
+; the constraints map a type variable to their definition
+; as an example, if there are (x -> alpha) and (y -> beta) in E,
+; and (x -> int), (x -> (int -> bool)), and (y -> int) in C,
+; There are several possible configurations to return: 
 (define TR
   (lambda (ast E C)
 
@@ -158,31 +248,39 @@
             ((eq? (car ast) `&apply) (begin
                                        (display "I'm apply!") (newline)
                                        (unify 
-                                        (car (TR (cadr ast) E C)) ; Parse lambda
+                                        ((car (TR (cadr ast) E C))) ; Parse lambda
                                         (TR (caddr ast) E C) ; Parse argument
                                        )
                                      )
             )
             ((eq? (car ast) `&var) (begin
                                      (display "I'm a var!") (newline)
-                                     
+                                     (pack
+                                       E
+                                       C
+                                     ; (cond
+                                     ;  ((
+                                      )
                                    )
             )
             ((eq? (car ast) `&const) (begin
                                        (display "I'm a const!") (newline)
-                                       (cons 
-                                        (cond
-                                            ((eq? (cdr ast) `true) `bool)
-                                            ((eq? (cdr ast) `false) `bool) 
-                                            (else `int)
-                                          )
-                                        C
-                                        )
+                                       (pack
+                                         ; Add our e to this if it doesn't exist yet.
+                                         (eIns E (cadr ast))
+                                         ; Add our c to this if it doesn't exist it
+                                         (cIns C (cadr ast)
+                                               (cond
+                                                 ((eq? `false (cadr ast)) `bool)
+                                                 ((eq? `true (cadr ast)) `true)
+                                                 (else `int)
+                                               )
+                                         )
+                                       )
                                      )
             )
             ((eq? (car ast) `&lambda) (begin
                                         (display "I'm a lambda!") (newline)
-                                        (cons (cons `(int -> int) '()) C)
                                       )
             )
             (else (begin
@@ -211,3 +309,7 @@
 (define M2 '((lambda (x) (sub1 x)) 5))
 (define M3 '((lambda (x) 1) ((lambda (x) (x x)) (lambda (x) (x x)))))
 (define M4 '((lambda (x) ((and x) #f)) #t))
+
+
+;; Basic testing commands
+;; (search (getE (TRec '6)) '6) -> int

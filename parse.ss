@@ -248,7 +248,7 @@
             ((eq? (car ast) `&apply) (begin
                                        (display "I'm apply!") (newline)
                                        (unify 
-                                        ((car (TR (cadr ast) E C))) ; Parse lambda
+                                        (TR (cadr ast) E C) ; Parse lambda
                                         (TR (caddr ast) E C) ; Parse argument
                                        )
                                      )
@@ -256,11 +256,11 @@
             ((eq? (car ast) `&var) (begin
                                      (display "I'm a var!") (newline)
                                      (pack
-                                       E
-                                       C
-                                     ; (cond
-                                     ;  ((
-                                      )
+                                      ; First, let's add a definition for the variable to our E
+                                      (eIns E (cadr ast))
+                                      ; Now, we have no idea what its type is, so we leave the type as C.
+                                      C
+                                     )
                                    )
             )
             ((eq? (car ast) `&const) (begin

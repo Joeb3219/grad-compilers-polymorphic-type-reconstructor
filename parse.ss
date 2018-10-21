@@ -163,6 +163,17 @@
   )
 )
 
+; Searches for K._ and returns K._ in L.
+(define searchFull
+  (lambda (L k)
+    (cond
+      ((null? L) '())
+      ((eq? K (caar L)) (car L))
+      (else (searchFull (cdr L) K))
+    )
+  )
+)
+
 ; Inserts only if K isn't already in L.
 (define insNew
   (lambda (L K V)
@@ -177,45 +188,56 @@
   )
 )
 
+; Returns the type expression e from the return type. This is just one item.
 (define getE
   (lambda (P)
     (car P)
   )
 )
 
+; Returns the type constraints C from the return type. This is a list.
 (define getC
   (lambda (P)
     (cdr P)
   )
 )
 
+; Packs a type variable e and a type constraint list C into a list.
+; Retrieve values through getE and getC.
 (define pack
   (lambda (E C)
     (cons E C)
   )
 )
 
-; If L is currently in E, will just return E
-; Otherwise, will generate a new environment variable and associate it with L, inserting into E.
-(define eIns
-  (lambda (E L)
-    (if (eq? (search E L) '()) (insert E L (newtvar)) E)
+; Packs the expression K's type expression & all constraints
+; IE: E contains all type variables, but we will extract only K's.
+(define uPack
+  (lambda (E C K)
+    (pack
+     (searchFull E K)
+     C
+    )
   )
 )
 
-(define eInsYields
-  (lambda (E L)
-    (if (eq? (search E L) '()) (insert E L (newtvar)) E)
+; Given a type environment E, and a function F, and a key K
+; We compute C with E as an argument, and extract the type expression e from E w/ a key K
+; We then return the packed version.
+(define ufPack
+  (lambda (E F K)
+    (uPack E (F E) K)
   )
 )
 
-
+; Insert a type expression T into C with a key L.
 (define cIns
   (lambda (C L T)
     (if (eq? (search C L) '()) (insert C L T) C)
   )
 )
 
+; Returns #t if I is in L, or #f otherwise.
 (define inList?
   (lambda (L I)
     (cond
@@ -226,6 +248,8 @@
   )
 )
 
+; Merges two lists, A and B, into one list.
+; Only adds non-duplicate entries of B into A.
 (define merge
   (lambda (A B)
     (reduce (lambda (N C)
@@ -243,10 +267,25 @@
   )
 )
 
+; Inserts a new variable into E and generates its type variable IFF it isn't already in the system.
+(define eInsTerm
+  (lambda (E L)
+    (if (eq? (search E L) '()) (insert E L (newtvar)) E)
+  )
+)
+
+; Similar to eInsTerm, but inserts a lambda expression.
+(define eInsLambda
+  (lambda (E L)
+    (if (eq? (search E L) '()) (insert E L (newYields)) E)
+  )
+)
+
 ; Executes F and merges the result into P.
 ; Returns the packed return type that results.
+; Only executes and merges if K is not already in E. 
 (define execAndMerge
-  (lambda (P F)
+  (lambda (P K F)
     (mergeReturn P (F))
   )
 )
@@ -278,38 +317,41 @@
                                      (display "I'm a var!") (newline)
                                      (pack
                                       ; First, let's add a definition for the variable to our E
-                                      (eInsYields E (cadr ast))
+                                      (eInsTerm E (cadr ast))
                                       ; Now, we have no idea what its type is, so we leave the type as C.
                                       C
+                                      (cadr ast)
                                      )
                                    )
             )
             ((eq? (car ast) `&const) (begin
                                        (display "I'm a const!") (newline)
-                                       (pack
+                                       (ufPack
                                          ; Add our e to this if it doesn't exist yet.
-                                         (eIns E (cadr ast))
+                                         (eInsTerm E (cadr ast))
                                          ; Add our c to this if it doesn't exist it
-                                         (cIns C (cadr ast)
-                                               (cond
-                                                 ((eq? `false (cadr ast)) `bool)
-                                                 ((eq? `true (cadr ast)) `true)
-                                                 (else `int)
-                                               )
+                                         (lambda (E)
+                                           (cIns C (search E (cadr ast))
+                                                (cond
+                                                  ((eq? `false (cadr ast)) `bool)
+                                                  ((eq? `true (cadr ast)) `true)
+                                                  (else `int)
+                                                )
+                                          )
                                          )
+                                         (cadr ast)
                                        )
                                      )
             )
             ((eq? (car ast) `&lambda) (begin
                                         (display "I'm a lambda!")
                                         (display ast) (newline)
-                                        (mergeReturn
-                                          (pack
+                                          (uPack
                                             ; First, we compute E by creating an aggregate of the whole function type,
                                             ;
-                                            (eIns E ast)
-                                            (cIns C (ast) 
-                                          )
+                                            E ;(eIns E ast)
+                C;                            (cIns C (ast))
+                                            ast
                                          )
                                        )
             )

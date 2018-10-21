@@ -73,6 +73,12 @@
   )
 )
 
+(define newYields
+  (lambda ()
+    (cons (newtvar) (cons `-> (newtvar)))
+  )
+)
+
 (define isYields?
   (lambda (R)
     (cond
@@ -197,6 +203,13 @@
   )
 )
 
+(define eInsYields
+  (lambda (E L)
+    (if (eq? (search E L) '()) (insert E L (newtvar)) E)
+  )
+)
+
+
 (define cIns
   (lambda (C L T)
     (if (eq? (search C L) '()) (insert C L T) C)
@@ -230,6 +243,14 @@
   )
 )
 
+; Executes F and merges the result into P.
+; Returns the packed return type that results.
+(define execAndMerge
+  (lambda (P F)
+    (mergeReturn P (F))
+  )
+)
+
 ; Returns in format of (typeExpression constraints)
 ; type expression is in terms of type variables, ie x -> beta
 ; the constraints map a type variable to their definition
@@ -257,7 +278,7 @@
                                      (display "I'm a var!") (newline)
                                      (pack
                                       ; First, let's add a definition for the variable to our E
-                                      (eIns E (cadr ast))
+                                      (eInsYields E (cadr ast))
                                       ; Now, we have no idea what its type is, so we leave the type as C.
                                       C
                                      )
@@ -280,8 +301,17 @@
                                      )
             )
             ((eq? (car ast) `&lambda) (begin
-                                        (display "I'm a lambda!") (newline)
-                                      )
+                                        (display "I'm a lambda!")
+                                        (display ast) (newline)
+                                        (mergeReturn
+                                          (pack
+                                            ; First, we compute E by creating an aggregate of the whole function type,
+                                            ;
+                                            (eIns E ast)
+                                            (cIns C (ast) 
+                                          )
+                                         )
+                                       )
             )
             (else (begin
                     (error 'TR "oops dropped a packet")

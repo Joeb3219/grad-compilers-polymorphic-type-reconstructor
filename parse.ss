@@ -69,13 +69,22 @@
 
 (define printE
   (lambda (E)
-    (error 'Help "I'm dead")
+    (cond
+      ((eq? E '()) (display ""))
+      (else (begin
+              (display (caar E)) (display "  =>  ") (display (cdar E)) (display "; ")
+              (printE (cdr E))
+            )
+       )
+    )  
   )
 )
 
+; I: The input type of the yields
+; O: Output type of the yields
 (define newYields
-  (lambda ()
-    (cons (newtvar) (cons `-> (newtvar)))
+  (lambda (I O)
+    (cons I (cons `-> (cons O '())))
   )
 )
 
@@ -84,6 +93,7 @@
     (cond
       ((null? R) #f)
       ((eq? '() (cdr R)) #f)
+      ((not (pair? (cdr R))) #f)
       ((eq? (cadr R) `->) #t)
       (else #f)
     )
@@ -119,7 +129,7 @@
 
 (define unify
   (lambda (C1 C2)
-    (display "C1: ") (display C1) (newline)
+    (display "C1: ") (printE C1) (newline)
     (display "C2: ") (display C2) (newline)
     (reduce
       (lambda (a b)
@@ -221,6 +231,32 @@
   )
 )
 
+(define mergeWithC
+  (lambda (P C)
+    (pack
+      (getE P)
+      (merge (getC P) C)
+    )
+  )
+)
+
+; This is meant to combine multiple returns into one big pack.
+; Given a currently Packed environment P, function F, and extraction key K,
+; will pack the result of calling F w/ the E of P, and extracting key K.
+; Merges the containers of F(E) w/ P_C
+(define pfPack
+  (lambda (P F K)
+    (mergeWithC
+      (ufpack
+       (getE P)
+       F
+       K
+      )
+      (getC P)
+    )
+  )
+)
+
 ; Given a type environment E, and a function F, and a key K
 ; We compute C with E as an argument, and extract the type expression e from E w/ a key K
 ; We then return the packed version.
@@ -274,10 +310,26 @@
   )
 )
 
+(define lastIns
+  (lambda (L)
+    (cond
+      ((null? L) '())
+      ((eq? '() (cdr L)) (car L))
+      (else (lastIns (cdr L)))
+    )
+  )
+)
+
 ; Similar to eInsTerm, but inserts a lambda expression.
+; V is the variable name, which will be used to create the yields in
+; R is the return name, which will be used to create the yields out
 (define eInsLambda
-  (lambda (E L)
-    (if (eq? (search E L) '()) (insert E L (newYields)) E)
+  (lambda (E C ast VP V RP)
+    (uPack
+     (insert E ast (newYields (search VP V) (cdr (lastIns RP))))
+     (merge (getC VP) (merge C RP))
+     ast
+    )
   )
 )
 
@@ -315,7 +367,7 @@
             )
             ((eq? (car ast) `&var) (begin
                                      (display "I'm a var!") (newline)
-                                     (pack
+                                     (uPack
                                       ; First, let's add a definition for the variable to our E
                                       (eInsTerm E (cadr ast))
                                       ; Now, we have no idea what its type is, so we leave the type as C.
@@ -326,6 +378,7 @@
             )
             ((eq? (car ast) `&const) (begin
                                        (display "I'm a const!") (newline)
+                                    
                                        (ufPack
                                          ; Add our e to this if it doesn't exist yet.
                                          (eInsTerm E (cadr ast))
@@ -344,20 +397,32 @@
                                      )
             )
             ((eq? (car ast) `&lambda) (begin
+                                        ; (ufPack (E F K)), (pfPack (P F K))
+                                        ; (lambda (E C ast VP V RP R)
                                         (display "I'm a lambda!")
-                                        (display ast) (newline)
-                                          (uPack
-                                            ; First, we compute E by creating an aggregate of the whole function type,
-                                            ;
-                                            E ;(eIns E ast)
-                C;                            (cIns C (ast))
-                                            ast
-                                         )
+                                        (eInsLambda
+                                         E
+                                         C
+                                         ast
+                                         ; VP
+                                         (TR (cadr ast) E C)
+                                         ; V
+                                         (caadr ast)
+                                         ; RP
+                                         (TR (caddr ast) E C)
+                                        )
                                        )
             )
             (else (begin
-                    (error 'TR "oops dropped a packet")
-                  )
+                                     (display "I'm a var!") (newline)
+                                     (uPack
+                                      ; First, let's add a definition for the variable to our E
+                                      (eInsTerm E (car ast))
+                                      ; Now, we have no idea what its type is, so we leave the type as C.
+                                      C
+                                      (car ast)
+                                     )
+                                   )
             )
           )
 

@@ -378,7 +378,7 @@
             )
             ((eq? (car ast) `&const) (begin
                                        (display "I'm a const!") (newline)
-                                    
+                                       (display ast) (newline)
                                        (ufPack
                                          ; Add our e to this if it doesn't exist yet.
                                          (eInsTerm E (cadr ast))

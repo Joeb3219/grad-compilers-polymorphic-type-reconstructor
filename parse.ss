@@ -80,6 +80,14 @@
   )
 )
 
+(define printPacked
+  (lambda (P)
+    (display "Pack: e:") (display (getE P)) (newline)
+    (display "C: ")
+    (printE (getC P))
+   )
+)
+
 ; I: The input type of the yields
 ; O: Output type of the yields
 (define newYields
@@ -127,27 +135,52 @@
   )
 )
 
+(define yieldsMatch?
+  (lambda (e a)
+    (cond
+      ((not (isYields? a)) #f)
+      ((eq? (yieldsOut a) e) #t)
+      (else #f)
+    )
+  )
+)
+
+(define unifyPack
+  (lambda (C P1 P2 ast)
+    (uPack
+     
+     (merge (getC P1) (merge C (getC P2)))
+     ast
+    )
+  )
+)
+
+(define union
+  (lambda (E e1 e2 C)
+    (pack E C)
+  )
+)
+
+(define nodeEqual?
+  (lambda (e1 e2)
+    #f
+  )
+)
+
+(define unifier
+  (lambda (E P1 A P2 B)
+    (printPacked P1) (newline)
+    (printPacked P2) (newline)
+    (printPacked (mergeReturn E P1 P2)) (newline)
+    (display "unifier");(unify (mergeReturn P1 P2) A B)
+  )
+)
+
 (define unify
-  (lambda (C1 C2)
-    (display "C1: ") (printE C1) (newline)
-    (display "C2: ") (display C2) (newline)
-    (reduce
-      (lambda (a b)
-         (if (eq? '() a) b (cons a b))
-      )
-      (map
-        (lambda (a)
-          (cond
-            ((isYields? a)
-             ; this is a yields value, so let's go ahead and parse everything in C2 that is part of it
-             (if (findMatch a C2) (yieldsOut a) '())
-            )
-            (else '())
-          )
-        )
-        C1
-      )
-      '()
+  (lambda (M e1 e2)
+    (cond
+      ((nodeEqual? e1 e2) #t)
+      (else #f)
     )
   )
 )
@@ -294,10 +327,16 @@
   )
 )
 
+(define mergeE
+  (lambda (E m)
+    (insert E (car m) (cdr m))
+  )
+)
+
 (define mergeReturn
-  (lambda (A B)
+  (lambda (E A B)
     (pack
-      (merge (getE A) (getE B))
+      (mergeE (mergeE E (getE A)) (getE B))
       (merge (getC A) (getC B))
     )
   )
@@ -320,16 +359,29 @@
   )
 )
 
+ ;(lambda (E C1 ast VRP V)
+  ;  ((lambda (C)
+   ;    (uPack
+    ;    (insert E ast (newYields (search VP V) (cdr (lastIns RP))))
+     ;   (merge (getC VP) (merge C RP))
+      ;  ast
+ ;     )
+  ;  ) (getC VRP) )
+   ;)
 ; Similar to eInsTerm, but inserts a lambda expression.
 ; V is the variable name, which will be used to create the yields in
 ; R is the return name, which will be used to create the yields out
 (define eInsLambda
-  (lambda (E C ast VP V RP)
-    (uPack
-     (insert E ast (newYields (search VP V) (cdr (lastIns RP))))
-     (merge (getC VP) (merge C RP))
-     ast
-    )
+  (lambda (E1 C1 ast VRP V R)
+    ((lambda (C)
+       ((lambda (E)
+          (uPack
+            E
+            (insert C (search E ast) (newYields (search (getE VRP) V) (search (getE VRP) R)))
+            ast
+          )
+       ) (insert E1 ast (newtvar)))
+    ) (merge C1 (getC VRP)) )
   )
 )
 
@@ -358,10 +410,19 @@
           (display (car ast))
           (cond
             ((eq? (car ast) `&apply) (begin
+                                       ; Apply works roughly as follows
+                                       ; Parse the lambda and get its type expression.
+                                       ; Next, parse the argument
+                                       ; Now, we try to see if there are any argument types M that satisy M->N.
+                                       ; If so, we return the type N as our type expression, and the constraints.
+                                       ; If not, we signal an error.
                                        (display "I'm apply!") (newline)
-                                       (unify 
+                                       (unifier
+                                        E
                                         (TR (cadr ast) E C) ; Parse lambda
+                                        (cadr ast)
                                         (TR (caddr ast) E C) ; Parse argument
+                                        (caddr ast)
                                        )
                                      )
             )
@@ -404,12 +465,12 @@
                                          E
                                          C
                                          ast
-                                         ; VP
-                                         (TR (cadr ast) E C)
-                                         ; V
+                                         ; VRP
+                                         ((lambda (VP)
+                                            (mergeReturn E VP (TR (caddr ast) E C))
+                                         ) (TR (cadr ast) E C))
                                          (caadr ast)
-                                         ; RP
-                                         (TR (caddr ast) E C)
+                                         (car (cdaddr ast))
                                         )
                                        )
             )
@@ -450,3 +511,5 @@
 
 ;; Basic testing commands
 ;; (search (getE (TRec '6)) '6) -> int
+
+(TRec M1)

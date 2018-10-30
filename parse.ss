@@ -63,6 +63,8 @@
 ;;
 ;; insertKeyVal: Takes three arguments, list, key, and value, and inserts key => val into list
 ;;
+;; findKey: Takes two arguemnts, list and key, and returns '() if key isn't in list, or its value if it is.
+;;
 ;; getKey: Takes one argument, item, and returns the key of the item
 ;;
 ;; getVal: Takes one argument, item, and return the value of the item
@@ -73,6 +75,17 @@
 ;;
 ;; pack: Takes three arguments, typeexp (the returned Type Expression), typeconst (the returned Type Constraints), and typevars (The type variables you'd like to keep)
 ;;       Will create a return list consisting of (e C_m), where C_m is only the type constraints needed in typevars
+
+(define findKey
+  (lambda (list key)
+    (cond
+      ((null? list) '())
+      ((eq? list '()) '())
+      ((eq? (getKey (car list)) key) (getVal (car list)))
+      (else (findKey (cdr list) key))
+    )
+  )
+)
 
 (define insert
   (lambda (list item)
@@ -119,13 +132,42 @@
     )
   )
 )
-  
+
+(define findUnfulfilled
+  (lambda (typeexp)
+    (cond
+      ((null? typeexp) '())
+      ((not (pair? typeexp)) '())
+      ((not (or (eq? typeexp `int) (eq? typeexp `bool))) (findUnfulfilled (cdr typeexp)))
+      (else (cons (car typeexpr) (findUnfulfilled (cdr typeexp))))
+    )
+  )
+)
+
 (define pack
-  (lambda (typeexp typeconst typevars)
+  (lambda (typeexp typeconst)
     (cons
       typeexp
-      (filter typeconst typevars)
+      (filter typeconst (findUnfulfilled typeexp))
     )
+  )
+)
+
+(define yields
+  (lambda (yieldsIn yieldsOut)
+    (cons yieldsIn (cons '-> (cons yieldsOut '())))
+  )
+)
+
+(define getPackedTypeExpr
+  (lambda (typeexpr)
+    (car typeexpr)
+  )
+)
+
+(define getPackedConstraints
+  (lambda (typeexpr)
+    (cdr typeexpr)
   )
 )
 
@@ -134,7 +176,7 @@
     (display "Err:") (display A) (display "->") (display B) (newline)
   )
 )
-  
+
 (define TR
   (lambda (ast E C)
     (if (null? ast) '()
@@ -151,6 +193,40 @@
               ; LAMBDA
               ((eq? `&lambda label) (begin
                                       (display "Lambda") (newline)
+                                      (
+                                        ; Generate the type of the variable we are using
+                                        (lambda (varName varTypeVar)
+                                          (
+                                            ; Generate the type of the expression
+                                            (lambda (E1 C1 expr)
+                                              (
+                                                ; Now we will recurse and parse expr, using the modified environments.
+                                                (lambda (exprReturn)
+                                                  ; Our return type is a yielding of varTypeVar -> (getE exprReturn)
+                                                  ; The returned constraints are the result of merging all constraints,
+                                                  ;     and then extracting the relevant.
+                                                  (pack
+                                                    ; E
+                                                    (yields varTypeVar (getPackedTypeExpr exprReturn))
+                                                    ; C
+                                                    C1
+                                                  )
+                                                )
+                                                ; Parse expr
+                                                (TR expr E1 C1)
+                                              )
+
+                                            )
+                                            ; E1 is the merging of E and the type expression for the variable.
+                                            (insertKeyVal E varName varTypeVar)
+                                            ; C1 is still just C
+                                            C
+                                            ; expr
+                                            (caddr ast)
+                                          )
+                                        )
+                                       (caadr ast) (newtvar)
+                                      )
                                    )
               )
               ; CONST
@@ -164,7 +240,6 @@
                                               (else `int)
                                             )
                                             C
-                                            '()
                                           )
                                         )
                                         ; Argument to val lambda.
@@ -175,9 +250,21 @@
               ; VAR
               ((eq? `&var label) (begin
                                      (display "Var") (newline)
-                                    ; (
-                                     ;  (lambda (
-                                     ;)
+                                     (
+                                       ; Get the name of this variable
+                                       (lambda (varName)
+                                         (pack
+                                           (if (eq? (findKey E varName) '())
+                                               ; We need to generate a new variable.
+                                               (newtvar)
+                                               ; Otherwise, we can just look it up.
+                                               (findKey E varName)
+                                           )
+                                           C
+                                         )
+                                       )
+                                       (cadr ast)
+                                     )
                                  )
               )
               (else (error 'TR "Unable to parse label"))

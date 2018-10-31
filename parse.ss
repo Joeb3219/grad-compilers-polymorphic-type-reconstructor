@@ -153,6 +153,18 @@
   )
 )
 
+(define isYields?
+  (lambda (type)
+    (cond
+      ((eq? '() type) #f)
+      ((not (list? type)) #f)
+      ((not (pair? type)) #f)
+      ((eq? '-> (cadr type)) #t)
+      (else #f)
+    )
+  )
+)
+
 (define yields
   (lambda (yieldsIn yieldsOut)
     (cons yieldsIn (cons '-> (cons yieldsOut '())))
@@ -161,13 +173,19 @@
 
 (define yieldsIn
   (lambda (yields)
-    (car yields)
+    (if (isYields? yields) 
+        (car yields)
+        '()
+    )
   )
 )
 
 (define yieldsOut
   (lambda (yields)
-    (caddr yields)
+    (if (isYields? yields)
+        (caddr yields)
+        yields
+    )
   )
 )
 
@@ -252,6 +270,7 @@
   (lambda (type1 type2 Constraints)
     (display "Being asked to unify") (display type1) (display " and ") (display type2) (newline) (display "MY constraints are ") (display Constraints) (newline)
     (cond
+      ((eq? type1 '()) (cons #t constraints))
       ((eq? type1 type2) (cons #t Constraints)) ; If type1 and type2 are equal, return #t
       ((and (eq? type1 `int) (eq? type2 `bool)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
       ((and (eq? type1 `bool) (eq? type2 `int)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
@@ -279,6 +298,12 @@
   )
 )
 
+(define occurs
+  (lambda (type1 type2)
+    (if (eq? type1 type2) #t #f)
+  )
+)
+
 (define TR
   (lambda (ast E C)
     (if (null? ast) '()
@@ -294,6 +319,7 @@
                                        (lambda (func appl)
                                          (display func) (newline)
                                          (display appl) (newline)
+                                         
                                          
                                          ; We will first parse the type of the lambda
                                          (
@@ -318,7 +344,7 @@
                                                              ; If so, our result is out.
                                                              ; Otherwise, our result is failure.
                                                              (
-                                                               (lambda (unifier)
+                                                              (lambda (unifier)
                                                                  (
                                                                      (lambda (success finalConstraints)
                                                                        (if (eq? success #f)

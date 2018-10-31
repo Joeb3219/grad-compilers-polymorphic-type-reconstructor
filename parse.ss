@@ -200,14 +200,80 @@
   )
 )
 
+(define substitute
+  (lambda (expression constraints)
+    (cond
+      ((null? constraints) expression)
+      ((eq? '() constraints) expression)
+      (else (
+             (lambda (currentTarget Replacement Next)
+               (substitute (substituteOne expression currentTarget Replacement) Next)
+             )
+             ; CurrentTarget
+             (getKey (car constraints))
+             ; Replacement
+             (getVal (car constraints))
+             ; Next
+             (cdr constraints)
+            ))
+    )
+  )
+)
+
+(define substituteOne
+  (lambda (expression target replacement)
+    (cond
+      ((null? expression) '())
+      ((eq? '() expression) '())
+      ((and (not (pair? expression)) (eq? expression target)) replacement)
+      ((and (not (pair? expression)) (not (eq? expression target))) expression)
+      ((list? (car expression)) (cons (substituteOne (car expression) target replacement) (substituteOne (cdr expression) target replacement)))
+      ((eq? (car expression) target) (cons  replacement (substituteOne (cdr expression) target replacement)))
+      (else (cons (car expression) (substituteOne (cdr expression) target replacement)))
+    )
+  )
+)
+
+(define isTypeVar?
+  (lambda (expression)
+    (cond
+      ((eq? expression `int) #f)
+      ((eq? expression `bool) #f)
+      ((list? expression) #f)
+      (else #t)
+    )
+  )
+)
+
+; Returns a compound return
+; #t/#f, and the needed constraints
+; simply cons'd together.
 (define unify
   (lambda (type1 type2 Constraints)
     (display "Being asked to unify") (display type1) (display " and ") (display type2) (newline) (display "MY constraints are ") (display Constraints) (newline)
     (cond
-      ((eq? type1 type2) #t) ; If type1 and type2 are equal, return #t
-      ((and (eq? type1 `int) (eq? type2 `bool)) #f) ; Both are constants, but not equivalent kinds of constants.
-      ((and (eq? type1 `bool) (eq? type2 `int)) #f) ; Both are constants, but not equivalent kinds of constants.
-      (else #f)
+      ((eq? type1 type2) (cons #t Constraints)) ; If type1 and type2 are equal, return #t
+      ((and (eq? type1 `int) (eq? type2 `bool)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
+      ((and (eq? type1 `bool) (eq? type2 `int)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
+      ((and (isTypeVar? type1) (not (isTypeVar? type2)))
+        (
+          ; First we try to set the constraints to eachother generically.
+          (lambda (modifiedConstraints)
+            (
+              (lambda (type1Mod type2Mod)
+                (unify type1Mod type2Mod modifiedConstraints)
+              )
+              ; type1Mod
+              (substitute type1 modifiedConstraints)
+              ; type2Mod
+              (substitute type2 modifiedConstraints)
+            )
+          )
+          ; modifiedConstraints
+          (insertKeyVal Constraints type1 type2)
+        )
+      )
+      (else (cons #f Constraints))
     )
   )
 )
@@ -252,12 +318,20 @@
                                                              ; Otherwise, our result is failure.
                                                              (
                                                                (lambda (unifier)
-                                                                 (if (eq? unifier #f)
-                                                                     (error 'TR "Could not unify type expression")
-                                                                     (pack
-                                                                       out
-                                                                       CF
+                                                                 (
+                                                                     (lambda (success finalConstraints)
+                                                                       (if (eq? success #f)
+                                                                          (error 'TR "Could not unify type expression")
+                                                                          (pack
+                                                                            (substitute out finalConstraints)
+                                                                            finalConstraints
+                                                                          )
+                                                                       )   
                                                                      )
+                                                                   ; Success
+                                                                   (car unifier)
+                                                                   ; Final Constraints
+                                                                   (cdr unifier)
                                                                  )
                                                                )
                                                                (unify in RightExpr CF)
@@ -410,5 +484,5 @@
 ;(TRec N2)
 ;(TRec N1)
 
-(TRec '(sub1 2))
-;(Trec M1)
+;(TRec '(sub1 2))
+(Trec M1)

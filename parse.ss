@@ -212,11 +212,11 @@
   )
 )
 
-(define error
-  (lambda (A B)
-    (display "Err:") (display A) (display "->") (display B) (newline)
-  )
-)
+;(define error
+;  (lambda (A B)
+;    (display "Err:") (display A) (display "->") (display B) (newline)
+;  )
+;)
 
 (define substitute
   (lambda (expression constraints)
@@ -270,7 +270,7 @@
   (lambda (type1 type2 Constraints)
     (display "Being asked to unify") (display type1) (display " and ") (display type2) (newline) (display "MY constraints are ") (display Constraints) (newline)
     (cond
-      ((eq? type1 '()) (cons #t constraints))
+      ((eq? type1 '()) (cons #t Constraints))
       ((eq? type1 type2) (cons #t Constraints)) ; If type1 and type2 are equal, return #t
       ((and (eq? type1 `int) (eq? type2 `bool)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
       ((and (eq? type1 `bool) (eq? type2 `int)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
@@ -491,6 +491,32 @@
   )
 )
 
+(define debug #f)
+
+(define newline
+  (lambda ()
+    (if debug (printf "\n") > (void))
+  )
+)
+
+(define display
+  (lambda (x)
+    (if debug (printf "~a" x) > (void))
+  )
+)
+
+(define fdisplay
+  (lambda (x)
+    (printf "~a" x)
+  )
+)
+
+(define fnewline
+  (lambda ()
+    (printf "\n")
+  )
+)
+
 (define TRec
   (lambda (m)
        ;;; extract type expression from compound return type
@@ -513,21 +539,50 @@
 (define M3 '((lambda (x) 1) ((lambda (x) (x x)) (lambda (x) (x x)))))
 (define M4 '((lambda (x) ((and x) #f)) #t))
 
-(define N1 '(lambda (x) x))
-(define N0 '1)
-(define N2 '#f)
+;(define N1 '(lambda (x) x))
+;(define N0 '1)
+;(define N2 '#f)
+;(define N3 '(lambda (x) (x x)))
+;(define N4 '((TRec '(lambda (x) (add1 (add1 (add1 (add1 (add1 x))))))) ((lambda (y) 1) 4)))
+;(define N6 '(lambda (x) (lambda (y) (x y))))
+;(define N5 '((lambda (x) 1) 5))
+;(define N7 '(((lambda (x) (lambda (y) ((or x) y) )) 10) 12))
+;(define N11 '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) 10) 12))
+;(define N9 '(((lambda (x) (lambda (y) ((or x) y) )) 10) #f))
+;(define N8 '((or #t) #f))
+;(define N10 '((or 10) #f))
 
-(define N3 '(lambda (x) (x x)))
 
-(define N4 '((TRec '(lambda (x) (add1 (add1 (add1 (add1 (add1 x))))))) ((lambda (y) 1) 4)))
+(define test
+  (lambda (Case ExpectedResult)
+    (
+      (lambda (Result)
+        (fdisplay "Test [") (fdisplay Case) (fdisplay "]: ") (fnewline)
+        (fdisplay "\tExpected: ") (fdisplay ExpectedResult) (fnewline)
+        (fdisplay "\tActual: ") (fdisplay Result) (fnewline)
+        (fdisplay "\tPassed?: ") (fdisplay (eq? Result ExpectedResult))
+        (if (eq? Result ExpectedResult) (fnewline) (error 'Test "Test failed"))
+      )
+      (TRec Case)
+    )
+  )
+)
 
-(define N6 '(lambda (x) (lambda (y) (x y))))
-(define N5 '((lambda (x) 1) 5))
-
-(TRec N3)
-;(TRec N0)
-;(TRec N2)
-;(TRec N1)
-
-;(TRec '(sub1 2))
-;(Trec M3)
+(test '((lambda (x) x) 1) 'int)
+(test M1 'int)
+(test M2 'int)
+(test M4 'bool)
+; (define N1 '(lambda (x) x))
+(test '1 'int)
+(test '#f 'bool)
+(test '((lambda (x) 1) 5) 'int)
+(test '((lambda (x) 1) #f) 'int)
+(test '((or #t) #f) 'bool)
+(test '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) 10) 12) 'bool)
+; (define N3 '(lambda (x) (x x)))
+; (define N4 '((TRec '(lambda (x) (add1 (add1 (add1 (add1 (add1 x))))))) ((lambda (y) 1) 4)))
+; (define N6 '(lambda (x) (lambda (y) (x y))))
+; (define N7 '(((lambda (x) (lambda (y) ((or x) y) )) 10) 12))
+; (define N11 '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) 10) 12))
+; (define N9 '(((lambda (x) (lambda (y) ((or x) y) )) 10) #f))
+; (define N10 '((or 10) #f))

@@ -468,7 +468,14 @@
 (define TRec
   (lambda (m)
        ;;; extract type expression from compound return type
-     (TR (parse m) init_E init_C)))
+    (
+      (lambda (return)
+        (substitute (getPackedTypeExpr return) (getPackedConstraints return))
+      )
+      (TR (parse m) init_E init_C)
+    )
+  )
+)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -484,9 +491,17 @@
 (define N0 '1)
 (define N2 '#f)
 
+(define N3 '(lambda (x) (x x)))
+
+(define N4 '((TRec '(lambda (x) (add1 (add1 (add1 (add1 (add1 x))))))) ((lambda (y) 1) 4)))
+
+(define N6 '(lambda (x) (lambda (y) (x y))))
+(define N5 '((lambda (x) 1) 5))
+
+(TRec N3)
 ;(TRec N0)
 ;(TRec N2)
 ;(TRec N1)
 
 ;(TRec '(sub1 2))
-(Trec M1)
+;(Trec M3)

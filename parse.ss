@@ -95,7 +95,7 @@
 
 (define insertKeyVal
   (lambda (list key val)
-    (insert list (cons key val))
+    (insert list (cons key (cons val '())))
   )
 )
 
@@ -107,7 +107,7 @@
 
 (define getVal
   (lambda (item)
-    (cdr item)
+    (cadr item)
   )
 )
 
@@ -205,6 +205,8 @@
     (display "Being asked to unify") (display type1) (display " and ") (display type2) (newline) (display "MY constraints are ") (display Constraints) (newline)
     (cond
       ((eq? type1 type2) #t) ; If type1 and type2 are equal, return #t
+      ((and (eq? type1 `int) (eq? type2 `bool)) #f) ; Both are constants, but not equivalent kinds of constants.
+      ((and (eq? type1 `bool) (eq? type2 `int)) #f) ; Both are constants, but not equivalent kinds of constants.
       (else #f)
     )
   )
@@ -361,6 +363,7 @@
                                      (
                                        ; Get the name of this variable
                                        (lambda (varName)
+                                         (display (findKey E varName)) (display "<<<") (newline)
                                          (pack
                                            (if (eq? (findKey E varName) '())
                                                ; We need to generate a new variable.
@@ -403,7 +406,9 @@
 (define N0 '1)
 (define N2 '#f)
 
-(TRec N0)
-(TRec N2)
-(TRec N1)
-(Trec M1)
+;(TRec N0)
+;(TRec N2)
+;(TRec N1)
+
+(TRec '(sub1 2))
+;(Trec M1)

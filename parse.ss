@@ -255,6 +255,7 @@
       ((eq? type1 type2) (cons #t Constraints)) ; If type1 and type2 are equal, return #t
       ((and (eq? type1 `int) (eq? type2 `bool)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
       ((and (eq? type1 `bool) (eq? type2 `int)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
+      ((and (not (isTypeVar? type1)) (isTypeVar? type2)) (unify type2 type1 Constraints))
       ((and (isTypeVar? type1) (not (isTypeVar? type2)))
         (
           ; First we try to set the constraints to eachother generically.
@@ -321,7 +322,10 @@
                                                                  (
                                                                      (lambda (success finalConstraints)
                                                                        (if (eq? success #f)
-                                                                          (error 'TR "Could not unify type expression")
+                                                                          (begin
+                                                                            (error 'TR "Could not unify type expression")
+                                                                            (pack '() '())
+                                                                          )
                                                                           (pack
                                                                             (substitute out finalConstraints)
                                                                             finalConstraints

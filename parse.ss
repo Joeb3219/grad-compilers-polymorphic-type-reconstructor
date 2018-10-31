@@ -159,6 +159,18 @@
   )
 )
 
+(define yieldsIn
+  (lambda (yields)
+    (car yields)
+  )
+)
+
+(define yieldsOut
+  (lambda (yields)
+    (caddr yields)
+  )
+)
+
 (define getPackedTypeExpr
   (lambda (typeexpr)
     (car typeexpr)
@@ -171,9 +183,30 @@
   )
 )
 
+(define mergeC
+  (lambda (C1 C2)
+    (cond
+      ((null? C2) C1)
+      ((eq? '() C2) C1)
+      ((eq? '() (findKey C1 (getKey (car C2)))) (mergeC (insertKeyVal C1 (getKey (car C2)) (getVal (car C2))) (cdr C2)))
+      (else (mergeC C1 (cdr C2)))
+    )
+  )
+)
+
 (define error
   (lambda (A B)
     (display "Err:") (display A) (display "->") (display B) (newline)
+  )
+)
+
+(define unify
+  (lambda (type1 type2 Constraints)
+    (display "Being asked to unify") (display type1) (display " and ") (display type2) (newline) (display "MY constraints are ") (display Constraints) (newline)
+    (cond
+      ((eq? type1 type2) #t) ; If type1 and type2 are equal, return #t
+      (else #f)
+    )
   )
 )
 
@@ -188,6 +221,81 @@
               ; APPLY
               ((eq? `&apply label) (begin
                                      (display "Apply") (newline)
+                                     (
+                                       (lambda (func appl)
+                                         (display func) (newline)
+                                         (display appl) (newline)
+                                         
+                                         ; We will first parse the type of the lambda
+                                         (
+                                          (lambda (funcReturn)
+                                            (display func) (display " => ") (display funcReturn) (newline)
+                                            ; We will now create a modified environment based on the returns 
+                                            (
+                                              (lambda (EL CL)
+                                                (display "CL: ") (display CL) (newline)
+
+                                                ; Now that we have a modified E and C, we can parse through the
+                                                ; application to find its types
+                                                (
+                                                  (lambda (applReturn)
+                                                    ; With applReturn, we now do an unification of the two to see if we can yield a result.
+                                                    (
+                                                      (lambda (LeftExpr RightExpr EF CF)
+                                                         (
+                                                           (lambda (in out)
+                                                             (display "Yields decomposed: ") (display in) (display ", ") (display out) (newline)
+                                                             ; Now, we must find some pairing of *in* and RightExpr that unifies.
+                                                             ; If so, our result is out.
+                                                             ; Otherwise, our result is failure.
+                                                             (
+                                                               (lambda (unifier)
+                                                                 (if (eq? unifier #f)
+                                                                     (error 'TR "Could not unify type expression")
+                                                                     (pack
+                                                                       out
+                                                                       CF
+                                                                     )
+                                                                 )
+                                                               )
+                                                               (unify in RightExpr CF)
+                                                             )
+                                                           )
+                                                           ; in
+                                                           (yieldsIn LeftExpr)
+                                                           ; out
+                                                           (yieldsOut LeftExpr)
+                                                         )
+                                                      )
+                                                      ; LeftExpr
+                                                      (getPackedTypeExpr funcReturn)
+                                                      ; RightExpr
+                                                      (getPackedTypeExpr applReturn)
+                                                      ; EF
+                                                      EL
+                                                      ; CF
+                                                      (mergeC CL (getPackedConstraints applReturn))
+                                                    )
+                                                  )
+                                                  (TR appl EL CL)
+                                                )
+                                                
+                                              )
+                                              ; EL is E with e added to it.
+                                              (insertKeyVal E func (getPackedTypeExpr funcReturn))
+                                              ; CL is C merged with the returned constraints added.
+                                              (mergeC C (getPackedConstraints funcReturn))
+                                            )
+                                          )
+                                          ; funcReturn
+                                          (TR func E C)
+                                         )
+                                       )
+                                       ; func
+                                       (cadr ast)
+                                       ; application
+                                       (caddr ast)
+                                    )
                                    )
               )
               ; LAMBDA
@@ -298,3 +406,4 @@
 (TRec N0)
 (TRec N2)
 (TRec N1)
+(Trec M1)

@@ -281,6 +281,59 @@
   )
 )
 
+(define lambdaUnify
+  (lambda (type1 type2 Constraints)
+    (display "Being asked to LAMBDA unify") (display type1) (display " and ") (display type2) (newline)
+    (
+      ; We begin by examining the first term of each sequence
+      ; If we can unify these, then we can substitute into the remainder of the expression
+      ; and then attempt to unify the remaining bounds.
+      ; Note: we may later need to add a check to unify a second time, and see if any changes happened. If so, we'd need to continue unifying until no changes happened
+      ; IE: fixed point, but sad.
+      (lambda (term1 term2)
+        (display "Lambda unify:: Let's see if") (display term1) (display " and ") (display term2) (display "unify!") (newline)
+        (
+          (lambda (termUnifier)
+            ; Now we've unified term1 and term2.
+            ; First, we see if they actually unified.
+            ; If not, we can return false here because nothing else will matter.
+            (if
+              (eq? (car termUnifier) #f)
+              (cons #f Constraints)
+              (
+                ; Since we did unify the two terms correctly, we now attempt to unify the remaining terms, while using this modified set.
+                (lambda (remaininderTerm1 remaininderTerm2)
+                   (unify remaininderTerm1 remaininderTerm2 (cdr termUnifier))
+
+                )
+                ;remainingTerm1
+                (if
+                  (or (pair? type1) (list? type1))
+                  (yieldsOut type1)
+                  '()
+                )
+                ;remainingTerm2
+                (if
+                  (or (pair? type2) (list? type2))
+                  (yieldsOut type2)
+                  '()
+                )
+              )
+            )
+            
+          )
+          ; termUnifier
+          (unify term1 term2 Constraints)
+        )
+      )
+      ; term1
+      (yieldsIn type1)
+      ; term2
+      (yieldsIn type2)
+    )
+  )
+)
+
 ; Returns a compound return
 ; #t/#f, and the needed constraints
 ; simply cons'd together.
@@ -288,6 +341,7 @@
   (lambda (type1 type2 Constraints)
     (display "Being asked to unify") (display type1) (display " and ") (display type2) (newline) (display "MY constraints are ") (display Constraints) (newline)
     (cond
+      ((or (isYields? type1) (isYields? type2)) (lambdaUnify type1 type2 Constraints))
       ((eq? type1 '()) (cons #t Constraints))
       ((eq? type1 type2) (cons #t Constraints)) ; If type1 and type2 are equal, return #t
       ((and (eq? type1 `int) (eq? type2 `bool)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
@@ -548,7 +602,7 @@
   )
 )
 
-(define debug #t)
+(define debug #f)
 
 (define newline
   (lambda ()
@@ -627,7 +681,7 @@
   )
 )
 
-(define runtests #f)
+(define runtests #t)
 
 (test '((lambda (x) x) 1) 'int)
 (test M1 'int)
@@ -640,7 +694,7 @@
 (test '((lambda (x) 1) #f) 'int)
 (test '((or #t) #f) 'bool)
 (test '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) 10) 12) 'bool)
-(test '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) #f) 12) 'bool)
+; (test '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) #f) 12) 'bool)
 ; (define N3 '(lambda (x) (x x)))
 ; (define N4 '((TRec '(lambda (x) (add1 (add1 (add1 (add1 (add1 x))))))) ((lambda (y) 1) 4)))
 ; (define N6 '(lambda (x) (lambda (y) (x y))))
@@ -666,5 +720,8 @@
              
   ) ;; We aren't doing this right, _a1 and _a2 should be resolve to be integers!
 
-(TRec Q9)
+(define Q10 '(
+               (lambda (x) (lambda (y) (add1 (x 5)))) add1
+             )
+)
 

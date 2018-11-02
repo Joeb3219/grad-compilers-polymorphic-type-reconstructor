@@ -283,6 +283,28 @@
 
 (define lambdaUnify
   (lambda (type1 type2 Constraints)
+    (
+      (lambda (firstRun)
+        (
+          (lambda (secondRun)
+            (cond
+              ( (and (equal? (cdr firstRun) (cdr secondRun)) (equal? (car firstRun) (car secondRun)) ) secondRun)
+              (else (lambdaUnify (substitute type1 (cdr secondRun)) (substitute type2 (cdr secondRun)) (cdr secondRun)))
+
+            )
+          )
+          ; secondRun
+          (lambdaUnify_internal (substitute type1 (cdr firstRun)) (substitute type2 (cdr firstRun)) (cdr firstRun))
+        )
+      )
+      ; firstRun
+      (lambdaUnify_internal type1 type2 Constraints)
+    )
+  )
+)
+
+(define lambdaUnify_internal
+  (lambda (type1 type2 Constraints)
     (display "Being asked to LAMBDA unify") (display type1) (display " and ") (display type2) (newline)
     (
       ; We begin by examining the first term of each sequence
@@ -372,7 +394,8 @@
 
 (define occurs
   (lambda (type1 type2)
-    (if (eq? type1 type2) #t #f)
+    (display "OCCURS: " ) (display type1) (display ", ") (display type2) (newline)
+    (if (equal? type1 type2) #t #f)
   )
 )
 
@@ -380,7 +403,6 @@
 ; we may need to forcibly create a function type.
 (define functionParser
   (lambda (ast E C)
-    (display "Here i am!") (newline)
     (
       (lambda (type expr)
         (cond
@@ -444,6 +466,7 @@
                                                     ; With applReturn, we now do an unification of the two to see if we can yield a result.
                                                     (
                                                       (lambda (LeftExpr RightExpr EF CF)
+                                                        
                                                          (
                                                            (lambda (in out)
                                                              ; Now, we must find some pairing of *in* and RightExpr that unifies.
@@ -473,7 +496,10 @@
                                                                    (cdr unifier)
                                                                  )
                                                                )
-                                                               (unify in RightExpr CF)
+                                                               (if (eq? (occurs LeftExpr RightExpr) #t)
+                                                                   (cons #f '())
+                                                                   (unify in RightExpr CF)
+                                                               )
                                                              )
                                                            )
                                                            ; in
@@ -602,7 +628,7 @@
   )
 )
 
-(define debug #f)
+(define debug #t)
 
 (define newline
   (lambda ()
@@ -724,4 +750,6 @@
                (lambda (x) (lambda (y) (add1 (x 5)))) add1
              )
 )
+
+(define Q11 '((lambda (x) (lambda (y) (add1 (x 5)))) sub1))
 

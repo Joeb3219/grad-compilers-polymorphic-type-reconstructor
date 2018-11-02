@@ -676,38 +676,27 @@
 (define M3 '((lambda (x) 1) ((lambda (x) (x x)) (lambda (x) (x x)))))
 (define M4 '((lambda (x) ((and x) #f)) #t))
 
-;(define N1 '(lambda (x) x))
-;(define N0 '1)
-;(define N2 '#f)
-;(define N3 '(lambda (x) (x x)))
-;(define N4 '((TRec '(lambda (x) (add1 (add1 (add1 (add1 (add1 x))))))) ((lambda (y) 1) 4)))
-;(define N6 '(lambda (x) (lambda (y) (x y))))
-;(define N5 '((lambda (x) 1) 5))
-;(define N7 '(((lambda (x) (lambda (y) ((or x) y) )) 10) 12))
-;(define N11 '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) 10) 12))
-;(define N9 '(((lambda (x) (lambda (y) ((or x) y) )) 10) #f))
-;(define N8 '((or #t) #f))
-;(define N10 '((or 10) #f))
-
-
 (define test
   (lambda (Case ExpectedResult)
+    (begin
+    (set! CurrentCounter 0)
     (if (eq? runtests #f) (fnewline) 
     (
       (lambda (Result)
         (fdisplay "Test [") (fdisplay Case) (fdisplay "]: ") (fnewline)
         (fdisplay "\tExpected: ") (fdisplay ExpectedResult) (fnewline)
         (fdisplay "\tActual: ") (fdisplay Result) (fnewline)
-        (fdisplay "\tPassed?: ") (fdisplay (eq? Result ExpectedResult))
-        (if (eq? Result ExpectedResult) (fnewline) (error 'Test "Test failed"))
+        (fdisplay "\tPassed?: ") (fdisplay (equal? Result ExpectedResult))
+        (if (equal? Result ExpectedResult) (fnewline) (error 'Test "Test failed"))
       )
       (TRec Case)
+    )
     )
     )
   )
 )
 
-(define runtests #t)
+(define runtests #f)
 
 (test '((lambda (x) x) 1) 'int)
 (test M1 'int)
@@ -751,5 +740,22 @@
              )
 )
 
-(define Q11 '((lambda (x) (lambda (y) (add1 (x 5)))) sub1))
+(test '(lambda (x) x) '(_a1 -> _a1))
+(test '1 'int)
+(test '#f 'bool)
+; (test '((TRec '(lambda (x) (add1 (add1 (add1 (add1 (add1 x))))))) ((lambda (y) 1) 4)))
+;(test '(lambda (x) (lambda (y) (x y))))
+(test '((lambda (x) 1) 5) 'int)
+;;;; (test '(((lambda (x) (lambda (y) ((or x) y) )) 10) 12))
+(test '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) 10) 12) 'bool)
+(test '(lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) '(int -> (int -> bool)))
+;(define N9 '(((lambda (x) (lambda (y) ((or x) y) )) 10) #f))
+(test '((or #t) #f) 'bool)
+;(define N10 '((or 10) #f))
 
+
+(test '((lambda (x) (lambda (y) (add1 (x 5)))) sub1) '(_a2 -> int))
+
+; (test '((lambda (x) (x #f)) (lambda (y) (lambda (z) ((or y) z)))))
+
+(TRec '((lambda (x) (x #f)) (lambda (y) (lambda (z) ((or y) z)))))

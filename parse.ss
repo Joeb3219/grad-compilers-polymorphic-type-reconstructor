@@ -330,21 +330,23 @@
     (
       (lambda (type expr)
         (cond
-          ((eq? type `&lambda) (TR ast E C))
           ((eq? type `&var) (
                               (lambda (return)
                                 (display "I'm a special case!") (display ast) (display " => ") (display return) (newline)
                                 ; Now we have the type of the variable, and can associate it with a new yields.
-                                (pack
-                                  (getPackedTypeExpr return)
-                                  (insertKeyVal (getPackedConstraints return) (getPackedTypeExpr return) (yields (newtvar) (newtvar)))
+                                (if (isYields? (getPackedTypeExpr return))
+                                    return
+                                    (pack
+                                      (getPackedTypeExpr return)
+                                      (insertKeyVal (getPackedConstraints return) (getPackedTypeExpr return) (yields (newtvar) (newtvar)))
+                                    )
                                 )
                               )
                               ; return
                               (TR ast E C)
                             )
           )
-          (else (pack '() '()))
+          (else (TR ast E C))
         )
       )
       (car ast)
@@ -355,6 +357,7 @@
 
 (define TR
   (lambda (ast E C)
+    (display "TR Entry: ") (display ast) (newline)
     (if (null? ast) '()
         ; Non null branch, we actually decode.
         (
@@ -477,7 +480,7 @@
                                                     ; E
                                                     (yields (substitute varTypeVar (getPackedConstraints exprReturn)) (substitute (getPackedTypeExpr exprReturn) (getPackedConstraints exprReturn)))
                                                     ; C
-                                                    C1
+                                                    (mergeC (mergeC C1 (getPackedConstraints exprReturn)) (getPackedConstraints exprReturn))
                                                   )
                                                 )
                                                 ; Parse expr
@@ -654,5 +657,14 @@
 (define Q3 '(lambda (x) (zero? x)))
 (define Q6 '(lambda (x) (x 1)))
 
-(TRec Q6)
+(define Q7 '((lambda (x) (or (zero? x) (zero? (add1 x)))) 1))
+(define Q8 '(lambda (x) (or (zero? x) (zero? (add1 x)))))
+(define Q9 '(((
+             lambda (m)
+                          (lambda (x) ((or (zero? x)) (zero? (add1 m))))
+                                       ) 1) #f)
+             
+  ) ;; We aren't doing this right, _a1 and _a2 should be resolve to be integers!
+
+(TRec Q9)
 

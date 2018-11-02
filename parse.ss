@@ -146,9 +146,11 @@
 
 (define pack
   (lambda (typeexp typeconst)
+    (display "I'm packing up! ") (display typeexp) (display typeconst) (newline)
     (cons
-      typeexp
-      (filter typeconst (findUnfulfilled typeexp))
+      (substitute typeexp typeconst)
+      typeconst
+      ;      (filter typeconst (findUnfulfilled typeexp))
     )
   )
 )
@@ -220,12 +222,28 @@
 
 (define substitute
   (lambda (expression constraints)
+    (
+      (lambda (firstRun)
+        (
+          (lambda (secondRun)
+            (if (equal? secondRun firstRun) secondRun (substitute secondRun constraints))
+          )
+          (substituteRun firstRun constraints)
+        )
+      )
+      (substituteRun expression constraints)
+    )
+  )
+)
+
+(define substituteRun
+  (lambda (expression constraints)
     (cond
       ((null? constraints) expression)
       ((eq? '() constraints) expression)
       (else (
              (lambda (currentTarget Replacement Next)
-               (substitute (substituteOne expression currentTarget Replacement) Next)
+               (substituteRun (substituteOne expression currentTarget Replacement) Next)
              )
              ; CurrentTarget
              (getKey (car constraints))
@@ -304,6 +322,37 @@
   )
 )
 
+; Depending on the current symbol on the left side,
+; we may need to forcibly create a function type.
+(define functionParser
+  (lambda (ast E C)
+    (display "Here i am!") (newline)
+    (
+      (lambda (type expr)
+        (cond
+          ((eq? type `&lambda) (TR ast E C))
+          ((eq? type `&var) (
+                              (lambda (return)
+                                (display "I'm a special case!") (display ast) (display " => ") (display return) (newline)
+                                ; Now we have the type of the variable, and can associate it with a new yields.
+                                (pack
+                                  (getPackedTypeExpr return)
+                                  (insertKeyVal (getPackedConstraints return) (getPackedTypeExpr return) (yields (newtvar) (newtvar)))
+                                )
+                              )
+                              ; return
+                              (TR ast E C)
+                            )
+          )
+          (else (pack '() '()))
+        )
+      )
+      (car ast)
+      (cdr ast)
+    )
+  )
+)
+
 (define TR
   (lambda (ast E C)
     (if (null? ast) '()
@@ -317,14 +366,14 @@
                                      (display "Apply") (newline)
                                      (
                                        (lambda (func appl)
-                                         (display func) (newline)
-                                         (display appl) (newline)
+                                         (display "func ")(display func) (newline)
+                                         (display "appl ")(display appl) (newline)
                                          
                                          
                                          ; We will first parse the type of the lambda
                                          (
                                           (lambda (funcReturn)
-                                            (display func) (display " => ") (display funcReturn) (newline)
+                                            (display "func: " )(display func) (display " => ") (display funcReturn) (display "; C: ") (display (getPackedConstraints funcReturn)) (newline)
                                             ; We will now create a modified environment based on the returns 
                                             (
                                               (lambda (EL CL)
@@ -334,12 +383,12 @@
                                                 ; application to find its types
                                                 (
                                                   (lambda (applReturn)
+                                                    (display "appl: ")(display appl) (display " => ") (display applReturn) (newline)
                                                     ; With applReturn, we now do an unification of the two to see if we can yield a result.
                                                     (
                                                       (lambda (LeftExpr RightExpr EF CF)
                                                          (
                                                            (lambda (in out)
-                                                             (display "Yields decomposed: ") (display in) (display ", ") (display out) (newline)
                                                              ; Now, we must find some pairing of *in* and RightExpr that unifies.
                                                              ; If so, our result is out.
                                                              ; Otherwise, our result is failure.
@@ -347,6 +396,9 @@
                                                               (lambda (unifier)
                                                                  (
                                                                      (lambda (success finalConstraints)
+                                                                       (display "Unify result ") (display success) (display  " with constraints ") (display finalConstraints) (newline)
+                                                                       (display "so my type expression is all ") (display (substitute out finalConstraints)) (newline)
+                                                                       (display "as a reminder that was for ") (display ast) (newline)
                                                                        (if (eq? success #f)
                                                                           (begin
                                                                             (error 'TR "Could not unify type expression")
@@ -394,7 +446,7 @@
                                             )
                                           )
                                           ; funcReturn
-                                          (TR func E C)
+                                          (functionParser func E C)
                                          )
                                        )
                                        ; func
@@ -419,9 +471,11 @@
                                                   ; Our return type is a yielding of varTypeVar -> (getE exprReturn)
                                                   ; The returned constraints are the result of merging all constraints,
                                                   ;     and then extracting the relevant.
+                                                  (display "exprreturn: ") (display exprReturn) (newline)
+                                                  (display "vartypevar: ") (display varTypeVar) (newline)
                                                   (pack
                                                     ; E
-                                                    (yields varTypeVar (getPackedTypeExpr exprReturn))
+                                                    (yields (substitute varTypeVar (getPackedConstraints exprReturn)) (substitute (getPackedTypeExpr exprReturn) (getPackedConstraints exprReturn)))
                                                     ; C
                                                     C1
                                                   )
@@ -491,7 +545,7 @@
   )
 )
 
-(define debug #f)
+(define debug #t)
 
 (define newline
   (lambda ()
@@ -555,6 +609,7 @@
 
 (define test
   (lambda (Case ExpectedResult)
+    (if (eq? runtests #f) (fnewline) 
     (
       (lambda (Result)
         (fdisplay "Test [") (fdisplay Case) (fdisplay "]: ") (fnewline)
@@ -565,8 +620,11 @@
       )
       (TRec Case)
     )
+    )
   )
 )
+
+(define runtests #f)
 
 (test '((lambda (x) x) 1) 'int)
 (test M1 'int)
@@ -579,6 +637,7 @@
 (test '((lambda (x) 1) #f) 'int)
 (test '((or #t) #f) 'bool)
 (test '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) 10) 12) 'bool)
+(test '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) #f) 12) 'bool)
 ; (define N3 '(lambda (x) (x x)))
 ; (define N4 '((TRec '(lambda (x) (add1 (add1 (add1 (add1 (add1 x))))))) ((lambda (y) 1) 4)))
 ; (define N6 '(lambda (x) (lambda (y) (x y))))
@@ -586,3 +645,14 @@
 ; (define N11 '(((lambda (x) (lambda (y) ((or (zero? x)) (zero? y)) )) 10) 12))
 ; (define N9 '(((lambda (x) (lambda (y) ((or x) y) )) 10) #f))
 ; (define N10 '((or 10) #f))
+
+
+(define Q1 '((lambda (x) (zero? x)) 3))
+(define Q4 '((lambda (x) (zero? x)) #f))
+(define Q5 '((lambda (x) (zero? x)) (lambda (y) 1)))
+(define Q2 '((lambda (x) (x 1)) add1))
+(define Q3 '(lambda (x) (zero? x)))
+(define Q6 '(lambda (x) (x 1)))
+
+(TRec Q6)
+

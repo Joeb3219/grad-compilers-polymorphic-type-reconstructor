@@ -146,7 +146,7 @@
 
 (define pack
   (lambda (typeexp typeconst)
-    (display "I'm packing up! ") (display typeexp) (display typeconst) (newline)
+    ;(display "I'm packing up! ") (display typeexp) (display typeconst) (newline)
     (cons
       (substitute typeexp typeconst)
       typeconst
@@ -305,7 +305,7 @@
 
 (define lambdaUnify_internal
   (lambda (type1 type2 Constraints)
-    (display "Being asked to LAMBDA unify") (display type1) (display " and ") (display type2) (newline)
+    ;(display "Being asked to LAMBDA unify") (display type1) (display " and ") (display type2) (newline)
     (
       ; We begin by examining the first term of each sequence
       ; If we can unify these, then we can substitute into the remainder of the expression
@@ -313,7 +313,7 @@
       ; Note: we may later need to add a check to unify a second time, and see if any changes happened. If so, we'd need to continue unifying until no changes happened
       ; IE: fixed point, but sad.
       (lambda (term1 term2)
-        (display "Lambda unify:: Let's see if") (display term1) (display " and ") (display term2) (display "unify!") (newline)
+        ;(display "Lambda unify:: Let's see if") (display term1) (display " and ") (display term2) (display "unify!") (newline)
         (
           (lambda (termUnifier)
             ; Now we've unified term1 and term2.
@@ -361,9 +361,27 @@
 ; simply cons'd together.
 (define unify
   (lambda (type1 type2 Constraints)
-    (display "Being asked to unify") (display type1) (display " and ") (display type2) (newline) (display "MY constraints are ") (display Constraints) (newline)
+;    (display "Being asked to unify") (display type1) (display " and ") (display type2) (newline) (display "MY constraints are ") (display Constraints) (newline)
     (cond
-      ((or (isYields? type1) (isYields? type2)) (lambdaUnify type1 type2 Constraints))
+      ((and (isYields? type1) (isYields? type2)) (lambdaUnify type1 type2 Constraints))
+      ((and (isYields? type1) (not (isYields? type2))) (unify type2 type1 Constraints))
+      ((and (not (isYields? type1)) (isYields? type2)) (
+          ; First we try to set the constraints to eachother generically.
+          (lambda (modifiedConstraints)
+            (
+              (lambda (type1Mod type2Mod)
+                (unify type1Mod type2Mod modifiedConstraints)
+              )
+              ; type1Mod
+              (substitute type1 modifiedConstraints)
+              ; type2Mod
+              (substitute type2 modifiedConstraints)
+            )
+          )
+          ; modifiedConstraints
+          (insertKeyVal Constraints type1 type2)
+        )
+      )
       ((eq? type1 '()) (cons #t Constraints))
       ((eq? type1 type2) (cons #t Constraints)) ; If type1 and type2 are equal, return #t
       ((and (eq? type1 `int) (eq? type2 `bool)) (cons #f Constraints)) ; Both are constants, but not equivalent kinds of constants.
@@ -394,7 +412,7 @@
 
 (define occurs
   (lambda (type1 type2)
-    (display "OCCURS: " ) (display type1) (display ", ") (display type2) (newline)
+    ;(display "OCCURS: " ) (display type1) (display ", ") (display type2) (newline)
     (if (equal? type1 type2) #t #f)
   )
 )
@@ -408,7 +426,7 @@
         (cond
           ((eq? type `&var) (
                               (lambda (return)
-                                (display "I'm a special case!") (display ast) (display " => ") (display return) (newline)
+                                ; (display "I'm a special case!") (display ast) (display " => ") (display return) (newline)
                                 ; Now we have the type of the variable, and can associate it with a new yields.
                                 (if (isYields? (getPackedTypeExpr return))
                                     return
@@ -433,7 +451,7 @@
 
 (define TR
   (lambda (ast E C)
-    (display "TR Entry: ") (display ast) (newline)
+;    (display "TR Entry: ") (display ast) (newline)
     (if (null? ast) '()
         ; Non null branch, we actually decode.
         (
@@ -541,7 +559,7 @@
               )
               ; LAMBDA
               ((eq? `&lambda label) (begin
-                                      (display "Lambda") (newline)
+                                      ;(display "Lambda") (newline)
                                       (
                                         ; Generate the type of the variable we are using
                                         (lambda (varName varTypeVar)
@@ -554,8 +572,8 @@
                                                   ; Our return type is a yielding of varTypeVar -> (getE exprReturn)
                                                   ; The returned constraints are the result of merging all constraints,
                                                   ;     and then extracting the relevant.
-                                                  (display "exprreturn: ") (display exprReturn) (newline)
-                                                  (display "vartypevar: ") (display varTypeVar) (newline)
+                                                  ;(display "exprreturn: ") (display exprReturn) (newline)
+                                                  ;(display "vartypevar: ") (display varTypeVar) (newline)
                                                   (pack
                                                     ; E
                                                     (yields (substitute varTypeVar (getPackedConstraints exprReturn)) (substitute (getPackedTypeExpr exprReturn) (getPackedConstraints exprReturn)))
@@ -582,7 +600,7 @@
               )
               ; CONST
               ((eq? `&const label) (begin
-                                     (display "Const") (newline)
+                                     ;(display "Const") (newline)
                                      ( (lambda (val)
                                          (pack
                                             (cond
@@ -600,11 +618,11 @@
               )
               ; VAR
               ((eq? `&var label) (begin
-                                     (display "Var") (newline)
+                                     ;(display "Var") (newline)
                                      (
                                        ; Get the name of this variable
                                        (lambda (varName)
-                                         (display (findKey E varName)) (display "<<<") (newline)
+                                         ;(display (findKey E varName)) (display "<<<") (newline)
                                          (pack
                                            (if (eq? (findKey E varName) '())
                                                ; We need to generate a new variable.
@@ -628,7 +646,7 @@
   )
 )
 
-(define debug #t)
+(define debug #f)
 
 (define newline
   (lambda ()
@@ -680,7 +698,7 @@
   (lambda (Case ExpectedResult)
     (begin
     (set! CurrentCounter 0)
-    (if (eq? runtests #f) (fnewline) 
+    (if (eq? runtests #t) (fnewline) 
     (
       (lambda (Result)
         (fdisplay "Test [") (fdisplay Case) (fdisplay "]: ") (fnewline)
@@ -758,4 +776,6 @@
 
 ; (test '((lambda (x) (x #f)) (lambda (y) (lambda (z) ((or y) z)))))
 
-(TRec '((lambda (x) (x #f)) (lambda (y) (lambda (z) ((or y) z)))))
+(test '((lambda (x) (x #f)) (lambda (y) (lambda (z) ((or y) z)))) '(bool -> bool))
+(test '(((lambda (x) (x #f)) (lambda (y) (lambda (z) ((or y) z)))) #f) 'bool)
+(test '((lambda (x) x) (lambda (y) (lambda (z) ((or y) z)))) '(bool -> (bool -> bool)))
